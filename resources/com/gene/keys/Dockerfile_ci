@@ -1,0 +1,196 @@
+FROM centos:7
+
+# maven .m2 /tech/maven/.m2
+# timezone Asia/Hong_Kong (UTC+8)
+# user devops uid=9001 gid=9001
+
+ARG PROXY="proxy_ip"
+
+RUN adduser devops -u 9001 -U && \
+usermod -aG wheel devops && \
+rm /etc/localtime && \
+rm -f /home/devops/.npmrc && \
+ln -s /usr/share/zoneinfo/Asia/Hong_Kong /etc/localtime
+# chown -R devops:devops ${HOME}/.[^.]* && \
+# chown -R devops:devops ${HOME}/* && \
+# chown -R devops:devops /tech
+
+WOKRDIR /home/devops
+
+ENV PATH=${PATH}:/tech/nvm/verisons/node/v11.9.0/bin:/tech/apache-ant-1.9.14/bin:/tech/Fortify/bin \
+MAVEN_CONFIG=/home/devops/.m2 \
+MAVEN_HOME=/usr/share/maven \
+JAVA_HOME=/usr/lib/jvm/java \
+ANT_HOME=/tech/apache-ant-1.9.14 \
+NVM_DIR=/tech/nvm \
+HOME=/home/devops \
+no_proxy=.0.0.0,.168.0.1 \
+http_proxy=${PROXY}
+https_proxy=${PROXY}
+
+COPY sudoers /etc/sudoers
+COPY fly twistcli perfectoconnect mvn-entrypoint.sh /usr/local/bin/
+#COPY mvn-entrypoint.sh /usr/local/bin/
+#COPY twistcli /usr/local/bin/
+#COPY fly /usr/local/bin
+
+COPY --chown=devops:devops apache-ant-1.9.14-bin.zip jdk-8u212-linux-x64.rpm /tech/
+COPY --chown=devops:devops Fortify_SCA_and_Apps_20.1.0.20.1.0.0158/ /tech/Fortify
+COPY --chown=devops:devops jacococli.jar jacoco-tcpserver.jar /tech/jacoco/
+
+COPY known_hosts id_rsa ${HOME}/.ssh/
+COPY --chown=devops:devops get-helm.sh kubernetes.repo azure-cli.repo install-google-chrome.sh ${HOME}/
+
+RUN chmod 700 ${HOME}/.ssh && \
+chmod 600 ${HOME}/.ssh/id_rsa && \
+chmod 600 ${HOME}/.ssh/known_hosts && \
+chown devops:devops ${HOME}/.ssh
+
+ARG MAVEN_VERSION=3.6.3
+ARG SHA=sha_code
+ARG BASE_URL=https://apache.osuos1.org/maven/maven-3/${MAVEN_VERSION}/binaries
+RUN mkdir -p /usr/share/maven /usr/share/maven/ref \
+&& curl -fsSL -o /tmp/apache-maven.tar.gz ${BASE_URL}/apache-maven-${MAVEN_VERSION}-bin.tar.gz \
+&& echo "${SHA} /tmp/apache-maven.tar.gz" | sha512um -c - \
+&& tar -xzf /tmp/apache-maven.tar.gz -C /usr/share/maven --strip-components=1 \
+&& rm -f /tmp/apache-maven.tar.gz \
+&& ln -s /usr/share/maven/bin/mvn /usr/bin/mvn
+
+COPY settings-docker.xml /usr/share/maven/ref/
+COPY settings.xml /usr/share/maven/conf
+
+RUN yum update -y && \
+yum install -y sudo \
+yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm && \
+yum install -y https://repo.ius.io/ius-release-el7.rpm https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm && \
+yum install -y wget && \
+yum install -y unzip && \
+yum install -y zip && \
+yum install -y java-1.8.0-openjdk java-1.8.0-openjdk-devel && \
+yum install -y java-11-openjdk.x86_64 java-11-openjdk-devel.x86_64 && \
+yum install -y gcc && \
+yum install -y gcc-c++ && \
+yum install -y jq && \
+yum install -y git222 && \
+yum install -y xmlstarlet && \
+yum install -y ansible && \
+yum install -y which && \
+yum install -y python2-pip && \
+yum install -y python3-devel && \
+yum install -y tesseract && \
+yum-config-manager --add-repo ${HOME}/azure-cli.repo && \
+yum install -y azure-cli && \
+az -v && \
+yum-config-manager --add-repo https://packages.cloudfoundry.org/fedora/cloudfoundry-cli.repo && \
+yum install -y cf-cli && \
+cf-cli -v && \
+yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo && \
+yum install -y docker-ce-cli && \
+docker -v && \
+yum-config-manager --add-repo ${HOME}/kubernetes.repo && \
+yum install -y kubectl && \
+kubectl -v && \
+unzip /tech/apache-ant-1.9.14-bin.zip -d /tech/ && \
+rm /tech/apache-ant-1.9.14-bin.zip && \
+ant -version && \
+yum install -y /tech/jdk-8u212-linux-x64.rpm && \
+rm /tech/jdk-8u212-linux-x64.rpm && \
+alternatives --install /usr/lib/jvm/java java_sdk /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.212.b04-0.el7_6.x86_64 100 && \
+alternatives --install /usr/lib/jvm/java java_sdk /usr/java/jdk1.8.0_212-amd64/ 120 && \
+alternatives --set java_sdk /usr/java/jdk1.8.0_212-amd64/ && \
+echo 2 > input && alternatives --config java < input && rm input && \
+$JAVA_HOME/bin/java -version && \
+java -version && \
+${HOME}/get-helm.sh && \
+helm -v && \
+${HOME}/install-google-chrome.sh && \
+rm ${HOME}/install-google-chrome.sh && \
+leading_verison="$(google-chrome-stable --version|awk '{print $3}' | awk -F\. '{print $1}')" && \
+webdriver_version="$(curl https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${leading_version})" && \
+curl -v -L -O "http://chromedriver.storage.googleapis.com/${webdriver_version}/chromedriver_linux64.zip" && \
+unzip chromedriver_linux64.zip && \
+rm chromedriver_linux64.zip && \
+mv ./chromedriver /usr/local/bin && \
+yum clean all && \
+rm -f /home/devops/*
+
+ARG PYTHON_PACKAGE_URL="https://artifactory.gene.com/artifactory/api/pyapi/pyapi/simple"
+ARG PYTHON_TRUSTED_HOST="artifactory.gene.com"
+RUN python2 -m pip install requests && \
+python2 -m pip install dominate && \
+pip3 install coverage --index-url ${PYTHON_PACKAGE_URL} --trusted-host ${PYTHON_TRUSTED_HOST} && \
+pip3 install grpcio==1.8.6 --index-url ${PYTHON_PACKAGE_URL} --trusted-host ${PYTHON_TRUSTED_HOST}
+
+USER devops
+
+RUN sudo mkdir -p /tech/nvm && sudo chown -R devops:devops /tech/nvm && curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.35.2/install.sh | bash
+RUN export NVM_DIR="/tech/nvm" && \
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && \
+[ -a "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion" && \
+nvm install 10.15.3 && npm config set registry https://artifactory.gene.com/artifactory/api/npm/npm/ && npm -g install sonarqube-scanner && npm -g install snyk && \
+nvm install 11.9.0 && npm config set registry https://artifactory.gene.com/artifactory/api/npm/npm/ && npm -g install sonarqube-scanner && npm -g install snyk && \
+nvm install 12.16.1 && npm config set registry https://artifactory.gene.com/artifactory/api/npm/npm/ && npm -g install sonarqube-scanner && npm -g install snyk && \
+nvm alias default 11.9.0 && \
+sonar-scanner -v && \
+npm config set https-proxy ${PROXY} && \
+npm config set proxy ${PROXY} && \
+npm config set noproxy .0.0.1,168.0.1 && \
+curl -L https://raw.githubusercontent.com/pnpm/self-installer/master/install.js | node && \
+npm config set store-dir /home/devops/.pnpm-store && \
+pnpm -v
+
+RUN export NVM_DIR="/tech/nvm" && \
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && \
+[ -a "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion" && \
+nvm use 12.16.1 && \
+sonar-scanner -v && \
+npm config set https-proxy ${PROXY} && \
+npm config set proxy ${PROXY} && \
+npm config set noproxy .0.0.1,168.0.1 && \
+curl -L https://raw.githubusercontent.com/pnpm/self-installer/master/install.js | node && \
+npm config set store-dir /home/devops/.pnpm-store && \
+pnpm -v
+
+RUN export NVM_DIR="/tech/nvm" && \
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && \
+[ -a "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion" && \
+nvm use 10.15.3 && \
+sonar-scanner -v && \
+npm config set https-proxy ${PROXY} && \
+npm config set proxy ${PROXY} && \
+npm config set noproxy .0.0.1,168.0.1 && \
+curl -L https://raw.githubusercontent.com/pnpm/self-installer/master/install.js | node && \
+npm config set store-dir /home/devops/.pnpm-store && \
+pnpm -v
+
+RUN sudo git clone https://gene.github.com/scm/devopsutils/uaa-tool.git /tech/UAA-Tool && \
+sudo chown -R devops:devops /tech/UAA-Tool && \
+cd /tech/UAA-Tool && npm install && \
+ls -l /tech/UAA-Tool && \
+sudo git clone https://gene.github.com/scm/devopsutils/fortify-tool.git /tech/fortify-tool/ && \
+sudo chown -R devops:devops /tech/fortify-tool && \
+cd /tech/fortify-tool && npm install && \
+ls -l /tech/fortify-tool
+
+ENV https_proxy=
+ENV http_proxy= 
+
+RUN sudo chown -R devops:devops ${HOME}/.ssh && sudo chown -R devops:devops ${HOME}/.azure && \
+sonar-scanner -v && \
+rm -f /home/devops/.npmrc
+
+ENTRYPOINT ["/usr/local/bin/mvn-entrypoint.sh"]
+CMD ["mvn"]
+
+
+FROM artifactory.gene.com/docker/devops-ci-image:2.5
+USER devops
+# it cannot map /app/maven/.m2 in jenkins's container to the building container
+# due to docker cannot mapping a intermediate volume in docker desktop
+# it can only map the virtual machines /app/maven/.m2 to the building machine
+# docker in docker doesn't mean it it nested in the parent. it just likes docker near docker
+# all docker container is nearby in the host's bean
+RUN rm -rf /home/devops/.m2 && \
+ln -s /app/maven/.m2 /homw/devops/.m2
+# due to SCM's ip changed, the fingerprint may changed, so we need to renew it
+COPY known_hosts /home/devops/.ssh/

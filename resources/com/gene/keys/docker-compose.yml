@@ -1,0 +1,93 @@
+version: '3'
+services:
+
+  jenkins:
+    image: jenkins:test
+    container_name: jenkins
+    network_mode: bridge
+    privileged: true
+    user: devops
+    volumes:
+      - /host_mnt/c/Users/genelin/Downloads/cygwin64/home/GeneLin/jenkins/jenkins_new/:/var/jenkins_home 
+      - /host_mnt/c/Users/genelin/Downloads/cygwin64/home/GeneLin/jenkins/jenkins_new/.sonar:/home/devops/.sonar
+      - /host_mnt/c/Users/genelin/Downloads/cygwin64/home/GeneLin/jenkins/jenkins_new/.npm:/home/devops/.npm
+      - /host_mnt/c/Users/genelin/Downloads/cygwin64/home/GeneLin/jenkins/jenkins_new/.m2:/app/maven/.m2
+      - /var/run/docker.sock:/var/run/docker.sock
+      - jks_ws:/var/jenkins_home/workspace
+      - jks_caches:/var/jenkins_home/caches
+      - jks_jobs:/var/jenkins_home/jobs
+      - jks_fps:/var/jenkins_home/fingerprints
+    restart: always
+    ports:
+      - 8080:8080
+    #networks:
+      #- jenkinsnet
+    environment: 
+      - JENKINS_OPTS=-Djava.awt.headless=true --prefix=/blueocean --httpPort=8080 --httpListenAddress=0.0.0.0
+    depends_on: 
+      - gitlab
+
+    nginx:
+      image: nginx:1.17.2
+      container_name: nginx
+      network_mode: bridge
+      volumes: 
+        - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+        - ./nginx/var/log/nginx:./var/log/nginx 
+      restart: always
+      command: nginx-debug -g 'daemon off;'
+      ports:
+        - 8000:8000
+      #networks:
+        #- jenkinsnet
+      depends_on: 
+        - jenkins
+        - gitlab
+      
+      gitlabhq:
+        image: 'gitlab/gitlab-ce:latest'
+        container_name: gitlab
+        network_mode: bridge
+        restart: always
+        privileged: true
+        environment: 
+          GITLAB_OMNIBUS_CONFIG: |
+            external_url 'http://lcoalhost:443/'
+            gitlab_rails['registry_enabled'] = false
+            gitlab_rails['sentry_enabled'] = false
+            puma['enable'] = true
+            puma['worker_processes'] = 1
+            sidekiq['max_concurrency'] = 1
+            postgresql['shared_buffers'] = '256MB'
+            postgresql['max_worker_processes'] = 1
+            nginx['enable'] = true
+            nginx['redirect_http_to_https'] = true
+            nginx['worker_processes'] = 1
+            prometheus['enable'] = false
+            alertmanager['enable'] = false
+            node_exporter['enable'] = false
+            redis_exporter['enable'] = false
+            postgre_exporter['enable'] = false
+            gitlab_exporter['enable'] = false
+            grafana['enable'] = false
+        ports:
+          - 80:80
+          - 443:443
+          - 22:22
+        volumes:
+          - etc:/etc/gitlab
+          - dbdata:/var/opt/gitlab
+          - logdata:/var/log/gitlab
+        #networks: 
+          #- jenkinsnet
+volumes:
+  dbdata:
+  logdata:
+  etc:
+  jks_caches:
+  jks_jobs:
+  jks_ws:
+  jks_fps:
+
+#networks:
+  #jenkinsnet:

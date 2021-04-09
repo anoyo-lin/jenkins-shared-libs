@@ -1,0 +1,111 @@
+buildscript {
+    ext {
+        springBootVersion = '1.5.3.RELEASE'
+    }
+    repositories {
+        mavenCentral()
+        jcenter()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+        maven {
+            url "https://artifactory.gene.com/artifactory/libs-release"
+        }
+        maven {
+            url "https://artifactory.gene.com/artifactory/libs-snapshot"
+        }
+    }
+    dependencies {
+        classpath "org.springframework.boot:sprint-boot-gradle-plugin:${springBootVersion}"
+        classpath "org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:3.1.1"
+        classpath "org.jfrog.buildinfo:build-info-extractor-gradle:3+"
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'application'
+
+apply plugin: 'jacoco'
+apply plugin: 'maven-publish'
+apply plugin: 'org.sonarqube'
+apply plugin: 'com.jfrog.artifactory'
+
+applicationDefualtJvmArgs = ["-Xms1024m", "-Xmx2048m"]
+
+group = 'com.gene'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = 1.8
+
+jar {
+    baseName = 'gene-service'
+    versiop = '0.0.1-SNAPSHOT'
+}
+
+springBoot {
+    mainClass = "com.gene.service.Application"
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url "http://artifactory.gene.com/artifactory/libs-release"
+    }
+}
+
+ext {
+    springCloudServiceVersion = '1.5.0.RELEASE'
+    springCloudVersion = 'Camden.SR7'
+}
+
+test {
+    jacoco {
+        enabled = true
+        destinationFile = file("./jacoco-server.exec")
+        includes = []
+        excludes = []
+        excludeClassLoaders = []
+        includeNoLocationClasses = false
+        dumpOnExit = true
+        classDumpDir = null
+        output = JacocoTaskExtension.Output.TCP_CLIENT
+        address = "localhost"
+        port = 6300
+        jmx = false
+    }
+}
+
+artifactory {
+    // clientConfig.setIncludeEnvVars(true)
+    // clientConfig.info.addEnvironmentProperty('test.adding.dynVar', new java.util.Date().toString())
+
+    contextUrl = "${artifactoryContextUrl}"
+    publish {
+        repository {
+            if (project.version.endsWith("-SNAPSHOT")) {
+                repoKey = 'libs-snapshot-local'
+            } else {
+                repoKey = 'libs-release-local'
+            }
+            username = "${artifactory_user}" // the publisher user name
+            password = "${artifactory_password}" // the publisher password
+            // This is an optional section for configuring Ivy publication ( when publishIvy = true).
+        }
+        defaults {
+            // Reference to Gradle publications defined in the build script.
+            // This is how we tell the Artifactory plugin which artifacts should be
+            // published to Artifactory
+            publications('uploadToArtifactory')
+            // properties to be attached to the published artifacts.
+            publishPom = true
+            publishArtifacts = true
+        }
+    }
+    reslove {
+        artifactoryContextUrl = "${artifactoryContextUrl}"
+        repository {
+            username = "${artifactory_user}"
+            password = "${artifactory_password}"
+        }
+    }
+}
