@@ -1,6 +1,6 @@
 package com.gene.parameters
 
-import com.gene.ap.git.GitUtil
+import com.gene.ap.gitflow.GitUtil
 import com.gene.logger.*
 import com.gene.util.notifications.NotificationsPropertiesCatalogBuilder
 import com.gene.util.propertyFile.PropertiesCatalog
@@ -48,23 +48,29 @@ class ParametersReader implements Serializable {
             )
         }
         // init the default properties if not set
-        if ( configuration.commonPropertiesFileName == null ){
-            boolean fileExists = scriptObj.fileExists "cicd/jenkins/ci/common-ci.properties"
+        def jenkinsFileTag = scriptObj.env.pipelineName 
+        if ( configuration.propertiesFolderName == null) 
+            configuration.propertiesFolderName = "golden_pipeline/jenkins"
+        if ( configuration.propertiesFileName == null ){
+            boolean fileExists = scriptObj.fileExists "${configuration.propertiesFolderName}/${jenkinsFileTag}/${jenkinsFileTag}.properties"
             if (fileExists) {
-                configuration.commonPropertiesFileName = "cicd/jenkins/ci/common-ci.properties"
-
+                configuration.propertiesFileName = "${jenkinsFileTag}/${jenkinsFileTag}.properties"
             } else {
-                configuration.commonPropertiesFileName = "ci/common-ci.properties"
+                configuration.propertiesFileName = "${jenkinsFileTag}.properties"
             }
         }
-        if ( configuration.propertiesFolderName == null )
-        configuration.propertiesFolderName = "golden_pipeline/jenkins"
-        if ( configuration.propertiesFileName == null )
-        configuration.propertiesFileName = "ci/ci.properties"
+        if ( configuration.commonPropertiesFileName == null ){
+            boolean fileExists = scriptObj.fileExists "${configuration.propertiesFolderName}/${jenkinsFileTag}/common-${jenkinsFileTag}.properties"
+            if (fileExists) {
+                configuration.commonPropertiesFileName = "${jenkinsFileTag}/common-${jenkinsFileTag}.properties"
+            } else {
+                configuration.commonPropertiesFileName = "common-${jenkinsFileTag}.properties"
+            }
+        }
         PropertiesCatalog propertiesCatalog = new PropertiesCatalog()
         def properties = scriptObj.readProperties file: "${configuration.propertiesFolderName}/${configuration.propertiesFileName}"
         if ( !configuration.isLibrary || !Boolean.parseBoolean(properties['isLibrary']))
-        propertiesCatalog = buildPropertiesCatalog(propertiesCatalog)
+            propertiesCatalog = buildPropertiesCatalog(propertiesCatalog)
 
         boolean propertiesFileContentValid = PropertyFilesReader.read(
             scriptObj,
@@ -92,32 +98,34 @@ class ParametersReader implements Serializable {
         if (!readPipelineParams('userProvisioningCli')) {
             pipelineParams.setProperty('useProvisioningCli', 'false')
         }
-        if (!readPipelineParams('manifestFileName') && scriptObj.env.targetEnvironment) {
-            pipelineParams.manifestFileName = 'golden_pipeline/provisioningCLI/apps/manifest-' + scriptObj.env.targetEnvironment + '.yml'
+        if (readPipelineParams('userProvisioningCli')) {
+            if (!readPipelineParams('manifestFileName') && scriptObj.env.targetEnvironment) {
+                pipelineParams.manifestFileName = 'golden_pipeline/provisioningCLI/apps/manifest-' + scriptObj.env.targetEnvironment + '.yml'
             
-        } else if ( readPipelineParams('manifestFileName')) {
-            logger.info("you defined manifest file path: " + readPipelineParams('manifestFileName'))
-        }
-        if (!readPipelineParams('serviceJson') && scriptObj.env.targetEnvironment) {
-            pipelineParams.serviceJson = 'golden_pipeline/provisioningCLI/services/' + scriptObj.env.targetEnvironment + '/assemble-servies.json'
-        } else if ( readPipelineParams('serviceJson')) {
-            logger.info("you defined services file path: " + readPipelineParams('serviceJson'))
-        }
-        if (!readPipelineParams('autoScaleYaml') && scriptObj.env.targetEnvironment) {
-            pipelineParams.autoScaleYaml = 'golden_pipeline/provisioningCLI/autoscales/autoScale-' + scriptObj.env.targetEnvironment + '.yml'
-        } else if ( readPipelineParams('autoScaleYaml')) {
-            logger.info("you defined autoScale file path: " + readPipelineParams('autoScaleYaml'))
-        }
-        if (!readPipelineParams('proxyUpsertYaml') && scriptObj.env.targetEnvironment) {
-            pipelineParams.proxyUpsertYaml = 'golden_pipeline/provisioningCLI/upserts/proxyUpsert-' + scriptObj.env.targetEnvironment + '.yml'
-        } else if ( readPipelineParams('proxyUpsertYaml')) {
-            logger.info("you defined proxyUpsert file path: " + readPipelineParams('proxyUpsertYaml'))
-        }
-        if (!readPipelineParams('smokeTestFileName') && scriptObj.env.targetEnvironment) {
-            pipelineParams.smokeTestFileName = 'golden_pipeline/provisioningCLI/apps/smokeTestScript-' + scriptObj.env.targetEnvironment + '.yml'
+            } else if ( readPipelineParams('manifestFileName')) {
+                logger.info("you defined manifest file path: " + readPipelineParams('manifestFileName'))
+            }
+            if (!readPipelineParams('serviceJson') && scriptObj.env.targetEnvironment) {
+                pipelineParams.serviceJson = 'golden_pipeline/provisioningCLI/services/' + scriptObj.env.targetEnvironment + '/assemble-servies.json'
+            } else if ( readPipelineParams('serviceJson')) {
+                logger.info("you defined services file path: " + readPipelineParams('serviceJson'))
+            }
+            if (!readPipelineParams('autoScaleYaml') && scriptObj.env.targetEnvironment) {
+                pipelineParams.autoScaleYaml = 'golden_pipeline/provisioningCLI/autoscales/autoScale-' + scriptObj.env.targetEnvironment + '.yml'
+            } else if ( readPipelineParams('autoScaleYaml')) {
+                logger.info("you defined autoScale file path: " + readPipelineParams('autoScaleYaml'))
+            }
+            if (!readPipelineParams('proxyUpsertYaml') && scriptObj.env.targetEnvironment) {
+                pipelineParams.proxyUpsertYaml = 'golden_pipeline/provisioningCLI/upserts/proxyUpsert-' + scriptObj.env.targetEnvironment + '.yml'
+            } else if ( readPipelineParams('proxyUpsertYaml')) {
+                logger.info("you defined proxyUpsert file path: " + readPipelineParams('proxyUpsertYaml'))
+            }
+            if (!readPipelineParams('smokeTestFileName') && scriptObj.env.targetEnvironment) {
+                pipelineParams.smokeTestFileName = 'golden_pipeline/provisioningCLI/apps/smokeTestScript-' + scriptObj.env.targetEnvironment + '.yml'
 
-        } else if ( readPipelineParams('smokeTestFileName')) {
-            logger.info("you defined smokeTestScript file path: " + readPipelineParams('smokeTestFileName'))
+            } else if ( readPipelineParams('smokeTestFileName')) {
+                logger.info("you defined smokeTestScript file path: " + readPipelineParams('smokeTestFileName'))
+            }
         }
         scriptObj.echo "Configuration from ${scriptObj.class.name}:"
         scriptObj.echo configuration.toString()
@@ -127,10 +135,13 @@ class ParametersReader implements Serializable {
     }
     public readPipelineParams(String name) {
         if (scriptObj.configuration.get(name) != null) {
-            logger.info("please move the properties ${name} : ${scriptObj.configuration.get(name)} to ci.properties.")
+            logger.info("please move the properties ${name} : ${scriptObj.configuration.get(name)} to ${jenkinsFileTag}.properties.")
+            if (scriptObj.configuration.get(name) == 'false') {
+                return false
+            }
             return scriptObj.configuration.get(name)
         } else {
-            return getBooleanFromPipelineParams(scriptObj.pipeline)
+            return getBooleanFromPipelineParams(scriptObj.pipelineParams, name)
         }
     }
     protected def getBooleanFromPipelineParams(Properties pipelineParams, String name) {

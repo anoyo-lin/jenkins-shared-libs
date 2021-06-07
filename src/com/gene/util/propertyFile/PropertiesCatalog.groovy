@@ -9,7 +9,7 @@ class PropertiesCatalog implements java.io.Serializable {
     private def propertiesCatalog = [:]
 
     @NonCPS
-    public void addMandatoryProperty(String name, String mssingMessage) {
+    public void addMandatoryProperty(String name, String missingMessage) {
         propertiesCatalog[name] = new MandatoryProperty(name, missingMessage);
     }
     @NonCPS
@@ -18,11 +18,11 @@ class PropertiesCatalog implements java.io.Serializable {
     }
     @NonCPS
     public def getPropertyDefinition(String name) {
-        return propertiesCatalog[name];
+        return propertiesCatalog[name]
     }
     @NonCPS
     public def getPropertyDefinitions() {
-        return propertiesCatalog.values();
+        return propertiesCatalog.values()
     }
     @NonCPS
     public int size() {

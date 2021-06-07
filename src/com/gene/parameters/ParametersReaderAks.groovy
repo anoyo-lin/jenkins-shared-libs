@@ -1,6 +1,6 @@
 package com.gene.parameters
 
-import com.gene.ap.git.GitUtil
+import com.gene.ap.gitflow.GitUtil
 import com.gene.logger.*
 import com.gene.util.notification.NotificationPropertiesCatalogBuilder
 import com.gene.util.propertyFile.PropertiesCatalog

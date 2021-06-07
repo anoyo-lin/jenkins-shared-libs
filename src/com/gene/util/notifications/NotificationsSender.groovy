@@ -1,6 +1,6 @@
 package com.gene.util.notifications
 
-class notificationsSender implements Serializable {
+class NotificationsSender implements Serializable {
     Script scriptObj
     Properties pipelineParams
 
@@ -25,13 +25,13 @@ class notificationsSender implements Serializable {
 
         }
         if(pipelineParams.slackChannel) {
-            slackNotification(buildStatusWithMessage, buildStatusWithMessage)
+            slackNotification(buildStatus, buildStatusWithMessage)
         }
     }
 
     private def emailNotification(def buildStatusWithMessage) {
-        scriptObj.emailtext body: """${SCRIPT, template="groovy-html.template"}""",
-        mimeType: 'text/html'
+        scriptObj.emailtext body: '''${SCRIPT, template="groovy-html.template"}''',
+        mimeType: 'text/html',
         subject: "[Jenkins] ${buildStatusWithMessage} ${scriptObj.env.JOB_BASE_NAME} - Build# ${scriptObj.env.BUILD_NUMBER}",
         to "${pipelineParams.emailJenkinsNotificationsTo}",
         replyTo "no_reply@gene.com",
@@ -40,7 +40,7 @@ class notificationsSender implements Serializable {
 
     private def mattermostNotification(def message) {
         scriptObj.mattermostSend channel: pipelineParams.mattermostChannelName,
-        color: '#439FE9',
+        color: '#439FE0',
         endpoint: pipelineParams.mattermostEndPoint,
         message: "Build Completed: ${scriptObj.env.JOB_NAME} - ${scriptObj.env.BUILD_NUMBER}    Result: ${scriptObj.currentBuild.currentResult}     Job URL: ${scriptObj.currentBuild.absoluteUrl}",
         text: pipelineParams.mattermostText
@@ -62,7 +62,7 @@ class notificationsSender implements Serializable {
             colorCode = '#FF0000' 
         }
 
-        scriptObj.withCredentials([scriptObj.string(credentialsId: "${pipelineParams.slackTokenCredentialId}", variable: 'tokenid')]) {
+        scriptObj.withCredentials([scriptObj.string(credentialsId: "${pipelineParams.slackTokenCredentialID}", variable: 'tokenid')]) {
             scriptObj.slackSend(color: colorCode,
             channel: pipelineParams.slackChannel,
             teamDomain: pipelineParams.slackDomain,

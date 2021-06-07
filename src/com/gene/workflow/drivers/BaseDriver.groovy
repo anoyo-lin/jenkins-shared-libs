@@ -11,7 +11,7 @@ import com.gene.logger.*
      String className
      String framework
 
-     BaseDriver(Script scriptObj, String className) {
+     BaseDriver(Script scriptObj, String className, String framework='python') {
          this.scriptObj = scriptObj
          this.className = className
          this.framework = framework
@@ -37,9 +37,9 @@ import com.gene.logger.*
              lib_name = temp_name
          }
          def global_libs = scriptObj.library(lib_name)
-         def customSharedLibrary = null
+         def customSharedLibrary = 'devops' 
 
-         if (scriptObj.configuration.customSharedLibrary != null || scriptObj.pipelineParams.customSharedLibrary !=null) {
+         if (scriptObj.configuration.customSharedLibrary != null || scriptObj.pipelineParams.customSharedLibrary != null) {
              customSharedLibrary = scriptObj.configuration.customSharedLibrary?scriptObj.configuration.customSharedLibrary:scriptObj.pipelineParams.customSharedLibrary
          }
 

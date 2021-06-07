@@ -1,7 +1,7 @@
 package com.gene.util.propertyFile
 
 class PropertyFilesReader {
-    static boolean read(Script scriptObj, String propertyFileName, PropertiesCatalog propertiesCatalog, String commonPropertiesFileName, Properties properties, String propertiesFolderName = "") {
+    static boolean read(Script scriptObj, String propertiesFileName, PropertiesCatalog propertiesCatalog, String commonPropertiesFileName, Properties properties, String propertiesFolderName = "") {
         scriptObj.echo '**************** Starting to process the Properties Files ****************'
         Properties pipelineProperties = new Properties()
 
@@ -9,15 +9,16 @@ class PropertyFilesReader {
         readFile(scriptObj, propertiesFileName. pipelineProperties, propertiesFolderName)
 
         scriptObj.echo '**************** Validating the contetn of the Properties Files ****************'
-        PropertiesFileValidator propertiesFileValidator = new PropertiesFileValidator(propertiesCatalog);
+        PropertiesFileValidator propertiesFileValidator = new PropertiesFileValidator(propertiesCatalog)
         boolean valid = propertiesFileValidator.validProperties(pipelineProperties);
 
-        scriptObj.echo propertiesFileValidator.getReportDetails();
+        scriptObj.echo propertiesFileValidator.getReportDetails()
 
         if (valid) {
             for(String name : pipelineProperties.stringPropertyNames()) {
-                properties.setProperty(name, pipelineProperties.getProperty(name));
+                properties.setProperty(name, pipelineProperties.getProperty(name))
             }
+            scriptObj.echo '**************** it\'s valid ****************'
         }
 
         scriptObj.echo '**************** Done processing the Properties Files ****************'
@@ -28,21 +29,23 @@ class PropertyFilesReader {
         def fileExists = scriptObj.fileExists "${filename}"
         if ( propertiesFolderName == null || propertiesFolderName == "" )
         propertiesFolderName = "jenkins"
+
         scriptObj.echo "Default Folder : [${propertiesFolderName}]"
 
         scriptObj.echo "[${fileName}] file found: " + fileExists
         if(fileExists) {
-            def fileProperties = scriptObj.readProperties file "${fileName}"
+            def fileProperties = scriptObj.readProperties file: "${fileName}"
             fileProperties.each { name, value ->
             pipelineProperties.setProperty(name, value)
             }
         } else {
-            fileExists = scriptObj.fileName "${propertiesFolderName}/${fileName}"
+            fileExists = scriptObj.fileExists "${propertiesFolderName}/${fileName}"
             scriptObj.echo "[${propertiesFolderName}/${fileName}] file found: " + fileExists
             if (fileExists) {
-                def fileProperties = scriptObj.readProperties file "${propertiesFolderName}/${fileName}"
+                def fileProperties = scriptObj.readProperties file: "${propertiesFolderName}/${fileName}"
                 fileProperties.each { name, value ->
                 pipelineProperties.setProperty(name, value)
+                }
             }
         }
     }

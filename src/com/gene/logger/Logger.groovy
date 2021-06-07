@@ -10,9 +10,9 @@ package com.gene.logger
 
  class Logger implements Serializable {
      private final Level Level
-     private final script scriptObj
+     private final Script scriptObj
 
-     Logger(scriptObj, Level level) {
+     Logger(Script scriptObj, Level level) {
          this.scriptObj = scriptObj
          this.level = level
      }
@@ -78,11 +78,9 @@ package com.gene.logger
              return
          }
 
-         scriptObj.ansiColor('xterm') {
-             scriptObj.echo "${message}"
-             if (e !=null) {
-                 e.printStackTrace()
-             }
+         scriptObj.echo "${message}"
+         if (e !=null) {
+             e.printStackTrace()
          }
      }
 
@@ -90,11 +88,9 @@ package com.gene.logger
          if (this.level > Level.INFO) {
              return
          }
-         scriptObj.ansiColor('xterm') {
-             scriptObj.echo "${message}"
-             if (closure != null) {
-                 closure()
-             }
+         scriptObj.echo "${message}"
+         if (closure != null) {
+             closure()
          }
      }
 

@@ -7,7 +7,7 @@ package com.gene.util.propertyFile
 public class OptionalProperty implements java.io.Serializable {
     String name
     String missingMessage
-    String defaultValue;
+    String defaultValue
     boolean mandatory = false
 
     public OptionalProperty(String name, String missingMessage, String defaultValue) {
