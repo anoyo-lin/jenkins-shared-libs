@@ -1,2 +1,2 @@
 # jenkins
-test
+please check /vars/pipelinePythonDeployment.groovy

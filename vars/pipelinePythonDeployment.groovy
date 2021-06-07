@@ -1,7 +1,8 @@
 public Map configuration
 public Properties pipelineParams
-private Boolean statusCodeScan
-private Boolean isSpecialPipeline
+
+private String public_ip
+private String harbor_port = "30002"
 
 def call(Map configuration) {
     this.configuration = configuration
@@ -44,18 +45,28 @@ def call(Map configuration) {
         }
 
         stages {
-            stage("build docker image & upload to registry") {
+            stage("unit test") {
                 steps {
                     script {
                         sh """
                         #!/bin/bash
-                        pip3 install -r requirements.txt
+                        pip3.6 install -r requirements.txt
                         python3 manage.py test
                         """
-                        def public_ip = sh(command: 'curl http://100.100.100.100/metadata', returnStdout: true)
-                        def harbor_port = '30002'
-                        docker build -t "${public_ip}:${harbor_port}/library/${ARTIFACTID}:${VERSION}" .
-                        docker push "${public_ip}:${harbor_port}/library/${ARTIFACTID}:${VERSION}"
+                    }
+                }
+            }
+            stage("build docker image & upload to registry") {
+                steps {
+                    script {
+                        withCredentials([usernamePassword(credentialsId: 'HARBOR_SECRET', usernameVariable: 'HARBOR_NAME', passwordVariable: 'HARBOR_PASSWORD')]) {
+                            this.public_ip = sh(command: 'curl http://100.100.100.200/latest/meta-data/eipv4', returnStdout: true)
+                            sh """
+                            docker login http://${public_ip}:${harbor_port} --username ${env.HARBOR_NAME} --password ${env.HARBOR_PASSWORD}
+                            docker build -t "${public_ip}:${harbor_port}/library/${ARTIFACTID}:${VERSION}" .
+                            docker push "${public_ip}:${harbor_port}/library/${ARTIFACTID}:${VERSION}"
+                            """
+                        }
                     }
                 }
             }
@@ -63,13 +74,22 @@ def call(Map configuration) {
                 steps {
                     script {
                         withCredentials([usernamePassword(credentialsId: 'ALIYUN_CREDENTIAL', usernameVariable: 'ALIYUN_ACCESS', passwordVariable: 'ALIYUN_SECRET')]) {
-                            def cipher = encrypted_cipher
-                            sh """
-                            git clone kms_client
-                            cd kms_client && python3.6 kms_client.py --ak ${env.ALIYUN_ACCESS} --sk ${env.ALIYUN_SECRET} --cipher ${cipher}
-                            """
+                            def cipher = configuration.cipher
+                            if (cipher != null || cipher != ''){
+                                GitUtil.cloneRepository(
+                                    this,
+                                    configuration.kmsRepository,
+                                    scriptObj.scm.getUserRemoteConfigs()[0].getCredentialId(),
+                                    [[name: "master"]],
+                                    'kms_client'
+                                )
+                                sh """
+                                pip3.6 install -r kmc_client/requirements.txt
+                                """
+                                def plain
+                                plain = sh(command: "python3.6 kms_client/gene_kms_client.py --ak ${env.ALIYUN_ACCESS} --as ${env.ALIYUN_SECRET} --cipher ${cipher} | sed -n 's#.*\[\([^]]*\)\].*#\1#p", returnStdout: true)
+                            }
                         }
-
                     }
                 }
             }
@@ -78,26 +98,22 @@ def call(Map configuration) {
                     script {
                         GitUtil.cloneRepository(
                             this,
-                            configuration.pipelineRepository,
+                            configuration.chartRepository,
                             scriptObj.scm.getUserRemoteConfigs()[0].getCredentialId(),
                             [[name: "master"]],
                             'helm_chart'
                         )
                         withCredentials([usernamePassword(credentialsId: 'HARBOR_SECRET', usernameVariable: 'HARBOR_NAME', passwordVariable: 'HARBOR_PASSWORD')]) {
                             sh """
-                            helm repo add gene-test http://${public_ip}:${harbor_port}/chartrepo/library
+                            helm repo add gene-test-helm http://${public_ip}:${harbor_port}/chartrepo/library
                             helm repo update
-                            sed docker image name
-                            sed chart version
                             helm plugin install https://github.com/chartmuseum/helm-push
-                            helm push --username=${env.HARBOR_USER} --password=${env.HARBOR_PASSWOD} gene-test/${ARTIFACTID}-helm-${VERSION}.tgz helm_chart
+                            helm push --username=${env.HARBOR_USER} --password=${env.HARBOR_PASSWOD} gene-test-helm/${ARTIFACTID}-helm-${VERSION}.tgz helm_chart
                             """
                         }
                         sh """
-                        helm upgrade -i gene-test gene-test/gene-digits-ocr:0.0.1
+                        helm upgrade -i ${ARTIFACTID}-${VERSION} gene-test-helm/${ARTIFACTID}-helm-${VERSION} --set image.repository="${public_ip}:${harbor_port}/library/${ARTIFACTID}" --set image.tag="${VERSION}"
                         """
-
-
                     }
                 }
             }
